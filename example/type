@@ -1,0 +1,11 @@
+xmpl
+comp 2
+    cmp1 4 s s i i
+    cmp2 1 s
+blck 2
+    blk1 2
+        cmp1
+        cmp2
+    blk2 1
+        cmp2
+!!!!

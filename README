@@ -1,0 +1,7 @@
++-.  /-\  -+-  +-+  |
+|-\  |-|   |   |||  |__
+aint the markup language
+v1.0 - by egdod
+pronounced rat-mull
+
+g++ -c ./ratml.c -o ./ratml.o;ar rcs ./ratml.a ./ratml.o
