@@ -1,11 +1,13 @@
 xmpl
-comp 2
+comp 3
     cmp1 4 s s i i
-    cmp2 1 s
+    cmp2 2 i s
+    cmp3 1 r
 blck 2
     blk1 2
         cmp1
         cmp2
-    blk2 1
+    blk2 2
         cmp2
+        cmp3
 !!!!

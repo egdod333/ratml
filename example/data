@@ -1,6 +1,10 @@
 blk1
-    cmp1 4:hi!! 01:i <3 ratml 1.0
-    cmp2 7:wowzers
+    cmp1 4:hi!! 10:i <3 ratml 1.0
+    cmp2 1 7:wowzers
+blk1
+    cmp1 7:did you 4:know 5 4
+    cmp2 3 5:this?
 blk2
-    cmp2 41:this is so fun
+    cmp2 2 25:there are references now,
+    cmp3 blk1:1
 !!!!

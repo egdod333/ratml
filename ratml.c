@@ -8,7 +8,6 @@
 typedef uint8_t ui8;
 typedef uint16_t ui16;
 typedef uint32_t ui32;
-
 ui32 blank;
 ui32 end;
 ui32 composite;
@@ -18,13 +17,10 @@ ui32 list;
 int readint(FILE* file){
   ui32 out=0;
   char a;
-  ui8 pwr=0;
+  // ui8 pwr=0;
   fread(&a,1,1,file);
-  while(48<=a&&a<58) {
-    ui32 t=(a-48);
-    for(ui8 i=0;i<pwr;i++){t*=10;}
-    pwr++;
-    out+=t;
+  while('0'<=a&&a<='9') {
+    out*=10;out+=a-'0';
     fread(&a,1,1,file);
   }
   return out;
@@ -52,11 +48,17 @@ rmltype filltype(FILE* file){
           fread(&k,1,1,file);
           switch(k){
             case 'i':
-            j.types[l]=INT_TYPE;
-            break;
+              j.types[l]=INT_TYPE;
+              break;
             case 's':
-            j.types[l]=STR_TYPE;
-            break;
+              j.types[l]=STR_TYPE;
+              break;
+            case 'r':
+              j.types[l]=REF_TYPE;
+              break;
+            case 'l':
+              j.types[l]=LST_TYPE;
+              break;
           }
           fseek(file,1,SEEK_CUR);
         }
@@ -90,10 +92,8 @@ rmltype filltype(FILE* file){
   return out;
 }
 rmldata filldata(rmltype* t,FILE* file,stroption st){
-  rmldata out={t,0,NULL};
-  ui32 a=0;
-  ui32 s=0;
-  ui32 n=0;
+  rmldata out={t,0,NULL,st};
+  ui32 a=0,s=0,n=0;
   while(a!=end){
     do{fread(&a,1,4,file);}while(a==blank);
     for(ui8 i=0;i<max(t->ctypecnt,t->btypecnt);i++){
@@ -102,16 +102,25 @@ rmldata filldata(rmltype* t,FILE* file,stroption st){
           fseek(file,1,SEEK_CUR);
           switch(t->ctypes[i].types[j]){
             case INT_TYPE:
-            s+=4;
-            readint(file);
-            fseek(file,-1,SEEK_CUR);
-            break;
+              s+=4;
+              readint(file);
+              fseek(file,-1,SEEK_CUR);
+              break;
             case STR_TYPE:{
               ui8 p=readint(file);
               s+=p+1;
               fseek(file,p,SEEK_CUR);
+              break;
             }
-            break;
+            case REF_TYPE:
+              fseek(file,5,SEEK_CUR);
+              readint(file);
+              fseek(file,-1,SEEK_CUR);
+              s+=8;
+              break;
+            case LST_TYPE:
+              exit(1);
+              break;
             default:;
           }
         }
@@ -128,8 +137,8 @@ rmldata filldata(rmltype* t,FILE* file,stroption st){
   out.d=(ui8*)malloc(s);
   out.l=n/8;
   fseek(file,0,SEEK_SET);
+  ui32 m=0;
   s=n;
-  n=0;
   a=0;
   do{
     do{fread(&a,1,4,file);}while(a==blank);
@@ -139,10 +148,10 @@ rmldata filldata(rmltype* t,FILE* file,stroption st){
           fseek(file,1,SEEK_CUR);
           switch(t->ctypes[i].types[j]){
             case INT_TYPE:
-            out.d[s]=readint(file);
-            s+=4;
-            fseek(file,-1,SEEK_CUR);
-            break;
+              *(ui32*)&out.d[s]=readint(file);
+              s+=4;
+              fseek(file,-1,SEEK_CUR);
+              break;
             case STR_TYPE:{
               ui8 p=readint(file);
               switch(st){
@@ -159,65 +168,109 @@ rmldata filldata(rmltype* t,FILE* file,stroption st){
               }
               break;
             }
-            break;
+            case REF_TYPE:
+              ui32 name;
+              fread(&out.d[s],1,4,file);
+              name=*(ui32*)&out.d[s];
+              s+=4;
+              fseek(file,1,SEEK_CUR);
+              ui8 o=readint(file);
+              for(ui8 i=0;i<m/8;i+=2){
+                if(((ui32*)out.d)[i]==name){
+                  if(i/2==o){
+                    *(ui32*)&out.d[s]=((ui32*)out.d)[i+1];
+                    break;
+                  }
+                }
+              }
+              fseek(file,-1,SEEK_CUR);
+              s+=4;
+              break;
+            case LST_TYPE:
+              exit(1);
+              break;
             default:;
           }
         }
         break;
-      }else if(i<t->btypecnt&&a==t->btypes[i].name){
-        ((ui32*)out.d)[n/4]=a;
-        ((ui32*)out.d)[n/4+1]=s;
-        n+=8;
+      }else if(i<t->btypecnt){
+        if(a==t->btypes[i].name){
+          ((ui32*)out.d)[m/4]=a;
+          ((ui32*)out.d)[m/4+1]=s;
+          m+=8;
+        }
       }
     }
     fseek(file,1,SEEK_CUR);
   }while(a!=end);
   return out;
 }
-rmlitem get(rmldata* d,const char* i,ui8 ind,stroption st){
-  ui32 blck=*(ui32*)i;
-  ui32 comp=*(ui32*)&i[5];
-  blcktype* btype;
-  comptype* ctype;
-  for(ui8 j=0;j<d->t->btypecnt;j++){
-    if(d->t->btypes[j].name==blck){
-      btype=&d->t->btypes[j];
-      break;
+ui32 getblck(rmldata* d,ui32 m,ui8 ix){
+  ui8 s=0;
+  rmltype* t=d->t;
+  for(ui8 i=0;i<d->l;i++){
+    if(*(ui32*)&d->d[8*i]==m){
+      if(s++==ix){return *(ui32*)&d->d[8*i+4];}
     }
   }
-  for(ui8 j=0;j<btype->length;j++){
-    if(btype->types[j]->name==comp){
-      ctype=btype->types[j];
-      break;
-    }
-  }
-  for(ui8 j=0;j<d->l;j++){
-    if(*(ui32*)&d->d[8*j]==blck){
-      ui8 b=*(ui32*)&d->d[8*j+4];
-      for(ui8 k=0;k<btype->length;k++){
-        for(ui8 l=0;l<btype->types[k]->length;l++){
-          if((l==ind)&&(btype->types[k]->name==comp)){
-            return &(d->d[b]);
-          }
-          switch(btype->types[k]->types[l]){
-            case INT_TYPE:b+=4;break;
-            case STR_TYPE:{
-              if(st==RML_STR){
-                b+=d->d[b]+1;
-              }else if(st==C_STR){
-                for(;d->d[b]!='\0';b++);
-              }
+}
+rmlitem getfromblck(rmldata* dat,stroption st,ui32 d,blcktype* t,ui8 i,char* n){
+  ui32 c=*(ui32*)n;
+  n+=5;
+  ui8 k=0;
+  while(((*n-'0')<10)&&((*n-'0')>=0)){k*=10;k+=*n-'0';n++;}
+  n++;
+  ui32 s=0;
+  for(ui8 h=0;h<t->length;h++){
+    comptype* cmp=t->types[h];
+    for(ui8 j=0;j<cmp->length;j++){
+      if((j==k)&&(cmp->name==c)){
+        if(cmp->types[j]==REF_TYPE){
+          blcktype* y;
+          ui32 m=*(ui32*)&((ui8*)dat->d)[s+d];
+          for(ui8 i=0;i<dat->t->btypecnt;i++){
+            if(dat->t->btypes[i].name==m){
+              y=&dat->t->btypes[i];
               break;
             }
           }
+          return getfromblck(dat,st,*(ui32*)&((ui8*)dat->d)[s+d+4],y,k,n);
         }
+        return (rmlitem)&((ui8*)dat->d)[s+d];
       }
-      printf("\n\n\nunimaginable\n");
-      return NULL;
-      // break;
-    }else{
+      switch(cmp->types[j]){
+        case INT_TYPE:
+          s+=4;
+          break;
+        case STR_TYPE:
+          if(st==C_STR){
+            while(((ui8*)dat->d)[d+s++]!=0){}//no 0 length strings i hope :3
+          }else if(st==RML_STR){
+            s+=1+((ui8*)dat->d)[s];
+          }
+          break;
+        case REF_TYPE:
+          s+=8;
+          break;
+      }
     }
   }
+  exit(6);
+}
+rmlitem get(rmldata* dat,char* n){
+  stroption st=dat->st;
+  ui32 b=*(ui32*)n;
+  blcktype* t;
+  for(ui8 i=0;i<dat->t->btypecnt;i++){
+    if(dat->t->btypes[i].name==b){
+      t=&dat->t->btypes[i];
+    }
+  }
+  n+=5;
+  ui8 i=0;
+  while(((*n-'0')<10)&&((*n-'0')>=0)){i*=10;i+=*n-'0';n++;}
+  n++;
+  return getfromblck(dat,st,getblck(dat,b,i),t,i,n);
 }
 void dump(rmldata* d){
   rmltype* t=d->t;
@@ -229,6 +282,8 @@ void dump(rmldata* d){
       switch(d->t->ctypes[i].types[j]){
         case INT_TYPE:c='i';break;
         case STR_TYPE:c='s';break;
+        case REF_TYPE:c='r';break;
+        case LST_TYPE:c='l';break;
       }
       printf(" %c",c);
     }
@@ -254,17 +309,29 @@ void dump(rmldata* d){
         for(ui8 l=0;l<t->btypes[k].length;l++){
           for(ui8 m=0;m<(*t->btypes[k].types[l]).length;m++){
             switch((*t->btypes[k].types[l]).types[m]){
-              case INT_TYPE:{
+              case INT_TYPE:
                 printf("\n%03.3u-%03.3u | %u",i+o,i+o+3,*(ui32*)&d->d[o+i]);
                 i+=4;
                 break;
-              }
               case STR_TYPE:{
-                ui8 n=(d->d)[o+i];
-                printf("\n%03.3u-%03.3u | %u:%.*s",i+o,i+o+n,n,n,&d->d[o+1+i]);
-                i+=n+1;
+                if(d->st==RML_STR){
+                  ui8 n=(d->d)[o+i];
+                  printf("\n%03.3u-%03.3u | %u:%.*s",i+o,i+o+n,n,n,&d->d[o+1+i]);
+                  i+=n+1;
+                }else if(d->st==C_STR){
+                  ui8 n=strlen(&d->d[i+o])+1;
+                  printf("\n%03.3u-%03.3u | %u:%s",i+o,i+o+n,n,&d->d[i+o]);
+                  i+=n;
+                }
                 break;
               }
+              case REF_TYPE:
+                printf("\n%03.3u-%03.3u | %.4s:%u",i+o,i+o+7,&d->d[i+o],d->d[i+o+4]);
+                i+=8;
+                break;
+              case LST_TYPE:
+                exit(1);
+                break;
             }
           }
         }
@@ -295,6 +362,6 @@ int ratml_init() {
   composite=*(ui32*)"comp";
   block=*(ui32*)"blck";
   list=*(ui32*)"list";
-  printf("ratml\n");
+  puts(RATML);
   return 0;
 }
