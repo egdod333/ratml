@@ -6,5 +6,9 @@ blk1
     cmp2 3 5:this?
 blk2
     cmp2 2 25:there are references now,
-    cmp3 blk1:1
+    cmp3 3
+        cmp4 1
+        cmp2 2 2::3
+        cmp1 3:wow 5:lists 3 4
+    blk1:1
 !!!!

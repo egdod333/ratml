@@ -1,9 +1,39 @@
-+-.  /-\  -+-  +-+  |
-|-\  |-|   |   |||  |__
-aint the markup language
-v1.0.1 - by egdod
-pronounced rat-mull
-changelog 1.0.1
-add reference types, 1.1 will release when lists are implemented
+                    +-.  /-\  -+-  +-+  |
+                    |-\  |-|   |   |||  |__
+                   ain't the markup language
+                  +==-- 1.0.2 - by egdod --==+
+                      pronounced rat-mull
+
+a simple, human-readable data storage language designed to work
+seamlessly with C/C++. Unforgiving in terms of user error, with
+little to no detection and prevention. use at your own risk.
+
+                     ---changelog 1.0.1---
+- add reference types, 1.1 will release when lists are
+  implemented
+- reference types are a new primitive allowing a composite item
+  to reference a block. see the new get function.
+- made numbers little-endian. and overhauled get. and maybe
+  added a few other things i forgot. 
+- made documentation obselete and did not update it
+
+                     ---changelog 1.0.2---
+- built list infrastructure, will add full functionality later
+  - getlistlgth()
+- cleaned up README(by a lot) and updated last changelog because
+  it wasn't very good
+- condensed the block/composite 32 bit name system into a union
+  type for readability and ease of use
+- added methods to assist freeing memory taken up by data bricks
+  and types
+- moved int representations of names of things to ratml.h and
+  renamed them
+
+                         ---TODO---
+- separate reading data into different functions. will need to
+  make new ones for list and real reading, probably not too bad
+- new stroption of pointer to cstr
+- make things look nice using https://stackoverflow.com/question
+  s/4396140/why-doesnt-ansi-c-have-namespaces
 
 gcc -c ./ratml.c -o ./ratml.o;ar rcs ./ratml.a ./ratml.o

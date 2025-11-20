@@ -1,8 +1,9 @@
 xmpl
-comp 3
+comp 4
     cmp1 4 s s i i
     cmp2 2 i s
-    cmp3 1 r
+    cmp3 2 l r
+    cmp4 1 i
 blck 2
     blk1 2
         cmp1
